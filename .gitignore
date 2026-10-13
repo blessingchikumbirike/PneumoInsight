@@ -1,0 +1,32 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Secrets and local config
+.env
+instance/
+config_local.py
+
+# Patient data and uploads (never publish)
+*.db
+*.sqlite
+*.sqlite3
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Large files (share through a release or a download link instead)
+*.keras
+*.h5
+chest_xray/
+data/
+dataset/
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
