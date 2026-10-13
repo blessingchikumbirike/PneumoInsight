@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient History - PneumoInsight</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7f6; }
+        .navbar { background-color: #0052D4; }
+
+        /* ── Table row hover ── */
+        .clickable-row { cursor: pointer; transition: background 0.2s; }
+        .clickable-row:hover { background-color: #e9ecef !important; }
+
+        /* ── Prediction badges ── */
+        .badge-pneumonia { background-color: #dc3545; }
+        .badge-normal    { background-color: #198754; }
+
+        /* ── Confidence tier badges ── */
+        .tier-high     { background-color: #198754; color: #fff; }
+        .tier-moderate { background-color: #cc8800; color: #fff; }
+        .tier-low      { background-color: #dc3545; color: #fff; }
+
+        /* ── Modal image panels ── */
+        .xray-panel {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 260px;
+        }
+        .xray-panel img {
+            max-height: 260px;
+            width: 100%;
+            object-fit: contain;
+        }
+        .xray-label {
+            text-align: center;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #6c757d;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Explanation box ── */
+        .explanation-box {
+            background: #f8f9fa;
+            border-left: 4px solid #0052D4;
+            border-radius: 0 6px 6px 0;
+            padding: 14px 16px;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            color: #2c2c2c;
+        }
+
+        /* ── Disclaimer strip ── */
+        .disclaimer-strip {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            color: #5d4037;
+        }
+
+        /* ── Stat cards in modal header area ── */
+        .stat-card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+        .stat-label  { font-size: 0.72rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value  { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark shadow">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">PneumoInsight AI</a>
+            <div class="ms-auto">
+                <a href="{{ url_for('export_analytics') }}" class="btn btn-light btn-sm me-2">
+                    <i class="bi bi-file-earmark-excel"></i> Export All
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="card shadow-sm p-4">
+            <h3 class="mb-1 text-dark fw-bold">Patient Diagnostic History</h3>
+            <p class="text-muted small mb-4">
+                <i class="bi bi-info-circle"></i>
+                Click any row to view the model analysis, Grad-CAM heatmap, and explainability report.
+            </p>
+
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Name</th>
+                        <th>Age / Gender</th>
+                        <th>Result</th>
+                        <th>Confidence</th>
+                        <th>Tier</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr class="clickable-row" data-bs-toggle="modal" data-bs-target="#modal{{ record.id }}">
+                        <td class="fw-bold text-primary">{{ record.patient_id }}</td>
+                        <td>{{ record.patient_name }}</td>
+                        <td>{{ record.age }} / {{ record.gender }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-pneumonia' if record.prediction == 'PNEUMONIA' else 'badge-normal' }}">
+                                {{ record.prediction }}
+                            </span>
+                        </td>
+                        <td>{{ record.confidence }}</td>
+
+                        {# ── IMPROVEMENT 1: Confidence tier badge in table ── #}
+                        <td>
+                            {% if record.confidence_tier %}
+                                {% if 'High' in record.confidence_tier %}
+                                    <span class="badge tier-high"><i class="bi bi-check-circle me-1"></i>{{ record.confidence_tier }}</span>
+                                {% elif 'Moderate' in record.confidence_tier %}
+                                    <span class="badge tier-moderate"><i class="bi bi-exclamation-circle me-1"></i>{{ record.confidence_tier }}</span>
+                                {% else %}
+                                    <span class="badge tier-low"><i class="bi bi-x-circle me-1"></i>{{ record.confidence_tier }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <a href="{{ url_for('download_report', id=record.id) }}"
+                               class="btn btn-sm btn-outline-dark"
+                               onclick="event.stopPropagation();">
+                                <i class="bi bi-file-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+
+
+                    {# ══════════════════════════════════════════════════════════════ #}
+                    {# MODAL — full explainability view                               #}
+                    {# ══════════════════════════════════════════════════════════════ #}
+                    <div class="modal fade" id="modal{{ record.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                            <div class="modal-content border-0 shadow">
+
+                                {# ── Modal header ── #}
+                                <div class="modal-header text-white" style="background:#0052D4;">
+                                    <div>
+                                        <h5 class="modal-title fw-bold mb-0">
+                                            {{ record.patient_name }}
+                                            <span class="fw-normal fs-6 ms-2 opacity-75">({{ record.patient_id }})</span>
+                                        </h5>
+                                        <small class="opacity-75">
+                                            {{ record.age }} yrs · {{ record.gender }} ·
+                                            {{ record.timestamp.strftime('%d %b %Y, %H:%M') }} ·
+                                            Assessed by {{ record.created_by }}
+                                        </small>
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-white ms-auto"
+                                            data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+
+                                <div class="modal-body">
+
+                                    {# ── IMPROVEMENT 1: Stat cards row ── #}
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3">
+                                            <div class="stat-card">
+                                                <div class="stat-label">Diagnosis</div>
+                                                <div class="stat-value
+                                                    {{ 'text-danger' if record.prediction == 'PNEUMONIA' else 'text-success' }}">
+                                                    {{ record.prediction }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-card">
+                                                <div class="stat-label">Confidence</div>
+                                                <div class="stat-value">{{ record.confidence }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-card">
+                                                <div class="stat-label">Confidence Tier</div>
+                                                <div class="stat-value" style="font-size:0.9rem;">
+                                                    {% if record.confidence_tier %}
+                                                        {% if 'High' in record.confidence_tier %}
+                                                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                        {% elif 'Moderate' in record.confidence_tier %}
+                                                            <i class="bi bi-exclamation-circle-fill text-warning me-1"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-x-circle-fill text-danger me-1"></i>
+                                                        {% endif %}
+                                                        {{ record.confidence_tier }}
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-card">
+                                                <div class="stat-label">Model</div>
+                                                <div class="stat-value" style="font-size:0.85rem;">DenseNet121</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# ── IMPROVEMENT 2: Side-by-side X-ray + Heatmap ── #}
+                                    <h6 class="fw-bold text-muted mb-3" style="letter-spacing:0.05em;">
+                                        AI GRAD-CAM HEATMAP ANALYSIS
+                                    </h6>
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
+                                            <div class="xray-panel">
+                                                <img src="{{ url_for('static', filename='uploads/' + record.filename) }}"
+                                                     alt="Original chest X-ray">
+                                            </div>
+                                            <div class="xray-label">Original X-ray</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="xray-panel">
+                                                <img src="{{ url_for('static', filename='uploads/' + record.result_filename) }}"
+                                                     alt="Grad-CAM heatmap overlay">
+                                            </div>
+                                            <div class="xray-label">
+                                                Grad-CAM Overlay
+                                                <span class="text-danger ms-1">■</span> High activation &nbsp;
+                                                <span class="text-warning ms-1">■</span> Moderate &nbsp;
+                                                <span class="text-info ms-1">■</span> Low
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# ── IMPROVEMENT 2 + 3: Dynamic AI explanation ── #}
+                                    <h6 class="fw-bold text-muted mb-2" style="letter-spacing:0.05em;">
+                                        AI EXPLAINABILITY REPORT
+                                    </h6>
+                                    <div class="explanation-box mb-3">
+                                        <i class="bi bi-cpu me-2 text-primary"></i>
+                                        {{ record.explanation or
+                                           "Explainability data is not available for this record. Re-run the analysis to generate a detailed explanation." }}
+                                    </div>
+
+                                    {# ── Clinical recommendation highlight ── #}
+                                    {% if record.confidence_tier %}
+                                    <div class="disclaimer-strip">
+                                        <i class="bi bi-shield-exclamation me-2"></i>
+                                        <strong>Research Prototype Notice ({{ record.confidence_tier }}):</strong>
+                                        {% if 'High' in record.confidence_tier %}
+                                            This prototype achieved high model certainty on this input. PneumoInsight is an educational research prototype developed as a capstone project at the University of Zimbabwe and is not approved for clinical use.
+                                        {% elif 'Moderate' in record.confidence_tier %}
+                                            This prototype achieved moderate model certainty on this input. Results at this confidence level should be interpreted with caution. PneumoInsight is an educational research prototype and is not intended for clinical decision-making.
+                                        {% else %}
+                                            This prototype achieved low model certainty on this input. This result is unreliable for any practical purpose. PneumoInsight is an educational research prototype developed for academic demonstration only.
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                </div>{# end modal-body #}
+
+                                <div class="modal-footer bg-light">
+                                    <a href="{{ url_for('download_report', id=record.id) }}"
+                                       class="btn btn-primary btn-sm">
+                                        <i class="bi bi-printer me-1"></i> Print Full PDF Report
+                                    </a>
+                                    <button type="button" class="btn btn-secondary btn-sm"
+                                            data-bs-dismiss="modal">Close</button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

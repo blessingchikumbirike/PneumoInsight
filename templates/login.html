@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PneumoInsight AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0052D4, #4364F7, #6FB1FC);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .login-card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background-color: #4364F7;
+            border: none;
+            font-weight: 600;
+            padding: 12px;
+        }
+        .btn-primary:hover {
+            background-color: #0052D4;
+        }
+        .form-control {
+            padding: 12px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="alert alert-warning alert-dismissible fade show shadow-sm mb-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <div class="card login-card p-4">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-primary">PneumoInsight AI</h2>
+                    <p class="text-muted small">Clinical Portal Access</p>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="Enter your username" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mb-3">Sign In</button>
+
+                    <div class="text-center mt-3">
+                        <p class="text-muted mb-0" style="font-size: 0.85rem;">
+                            Forgot password? Contact <span class="text-primary fw-bold">IT Support</span>
+                        </p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="text-white-50 small">&copy; 2026 PneumoInsight Medical Systems</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
