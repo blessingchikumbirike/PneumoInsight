@@ -1,0 +1,18 @@
+# Web application
+flask
+flask-sqlalchemy
+flask-login
+werkzeug
+tensorflow
+opencv-python
+numpy
+pandas
+xlsxwriter
+reportlab
+pillow
+
+# Training notebooks only
+scikit-learn
+matplotlib
+seaborn
+jupyter
